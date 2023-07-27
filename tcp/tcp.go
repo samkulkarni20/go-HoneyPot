@@ -6,9 +6,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/jinzhu/gorm"
-	"github.com/mojachieee/go-HoneyPot/config"
 )
 
 // Server is the tcp server struct
@@ -22,43 +19,57 @@ func NewServer(ports []string) *Server {
 }
 
 // Start starts the tcp server
-func (t *Server) Start(db *gorm.DB, cfg config.Database) {
+func (t *Server) Start() {
 	var wg sync.WaitGroup
 	wg.Add(len(t.Ports))
 	for _, port := range t.Ports {
-		go func(port string, wg *sync.WaitGroup, db *gorm.DB, cfg config.Database) {
+		go func(port string, wg *sync.WaitGroup) {
 			fmt.Printf("Listening on tcp port: %v\n", port)
-			listen, err := net.Listen("tcp", ":"+port)
+			// listen, err := net.Listen("tcp", ":"+port)
+			// if err != nil {
+			// 	log.Println("Unable to net.Listen. Received error: ", err)
+			// 	wg.Done()
+			// 	return
+			// }
+			addr, err := net.ResolveTCPAddr("tcp", ":"+port)
 			if err != nil {
-				log.Println(err)
+				log.Println("Unable to net.ResolveTCPAddr. Received error: ", err)
+				wg.Done()
+				return
+			}
+			listen2, err := net.ListenTCP("tcp", addr)
+			if err != nil {
+				log.Println("Unable to net.ListenTCP. Received error: ", err)
 				wg.Done()
 				return
 			}
 			for {
-				conn, err := listen.Accept()
+				// conn, err := listen.Accept()
+				// if err != nil {
+				// 	log.Fatal(err)
+				// 	// handle error
+				// }
+
+				conn2, err := listen2.AcceptTCP()
 				if err != nil {
 					log.Fatal(err)
 					// handle error
 				}
-				go handleConnection(conn, db, cfg)
+				// Enable Keepalives
+				err = conn2.SetKeepAlive(true)
+				if err != nil {
+					fmt.Printf("Unable to set keepalive - %s", err)
+				}
+				go handleConnection(conn2)
 			}
-		}(port, &wg, db, cfg)
+		}(port, &wg)
 	}
 	wg.Wait()
 	fmt.Println("TCP Server Stopped")
 }
 
-func handleConnection(conn net.Conn, db *gorm.DB, cfg config.Database) {
-	fmt.Println("connection")
-	data := make([]byte, 4096)
-	n, err := conn.Read(data)
-	if err != nil {
-		log.Println(err)
-		conn.Close()
-		return
-	}
-	defer conn.Close()
-	fmt.Printf("Received data from %v, of length %v data is %v\n", conn.RemoteAddr(), n, data[:n])
+func handleConnection(conn net.Conn) {
+	fmt.Println("Handle Conection received: connection")
 	remHost, remPort, err := net.SplitHostPort(conn.RemoteAddr().String())
 	if err != nil {
 		fmt.Printf("Failed to split remote host and port: %v\n", err)
@@ -69,7 +80,20 @@ func handleConnection(conn net.Conn, db *gorm.DB, cfg config.Database) {
 		fmt.Printf("Failed to split remote host and port: %v\n", err)
 		return
 	}
-	str := fmt.Sprintf(`INSERT INTO %v (Date, InIp, InPort, DestIP, DestPort, DataLength)VALUES ("%v", "%v", "%v", "%v", "%v", "%v")`,
-		cfg.Table, time.Now().Format("20060102150405"), remHost, remPort, locHost, locPort, n)
-	db.Exec(str)
+	str := fmt.Sprintf(`Date: %v, InIp: %v, InPort: %v, DestIP: %v, DestPort: %v`,
+		time.Now().Format("20060102150405"), remHost, remPort, locHost, locPort)
+	fmt.Println(str)
+	data := make([]byte, 4096)
+	n, err := conn.Read(data)
+	if err != nil {
+		log.Println(err)
+		conn.Close()
+		return
+	}
+	defer conn.Close()
+	fmt.Printf("Received data from %v, of length %v data is %s\n", conn.RemoteAddr(), n, data[:n])
+
+	str = fmt.Sprintf(`Date: %v, InIp: %v, InPort: %v, DestIP: %v, DestPort: %v, DataLength: %v`,
+		time.Now().Format("20060102150405"), remHost, remPort, locHost, locPort, n)
+	fmt.Println(str)
 }

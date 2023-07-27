@@ -8,18 +8,7 @@ import (
 
 // Config is the struct for all configurable data
 type Config struct {
-	DB  Database `json:"db"`
-	TCP TCP      `json:"tcp"`
-}
-
-// Database is the config struct for the database
-type Database struct {
-	Host     string `json:"host"`
-	Name     string `json:"name"`
-	Table    string `json:"table"`
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Port     string `json:"port"`
+	TCP TCP `json:"tcp"`
 }
 
 // TCP is the config struct for the tcp server
