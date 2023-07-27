@@ -92,8 +92,4 @@ func handleConnection(conn net.Conn) {
 	}
 	defer conn.Close()
 	fmt.Printf("Received data from %v, of length %v data is %s\n", conn.RemoteAddr(), n, data[:n])
-
-	str = fmt.Sprintf(`Date: %v, InIp: %v, InPort: %v, DestIP: %v, DestPort: %v, DataLength: %v`,
-		time.Now().Format("20060102150405"), remHost, remPort, locHost, locPort, n)
-	fmt.Println(str)
 }
