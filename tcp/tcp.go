@@ -25,42 +25,44 @@ func (t *Server) Start() {
 	for _, port := range t.Ports {
 		go func(port string, wg *sync.WaitGroup) {
 			fmt.Printf("Listening on tcp port: %v\n", port)
-			// listen, err := net.Listen("tcp", ":"+port)
+			listen, err := net.Listen("tcp", ":"+port)
+			if err != nil {
+				log.Println("Unable to net.Listen. Received error: ", err)
+				wg.Done()
+				return
+			}
+			// addr, err := net.ResolveTCPAddr("tcp", ":"+port)
 			// if err != nil {
-			// 	log.Println("Unable to net.Listen. Received error: ", err)
+			// 	log.Println("Unable to net.ResolveTCPAddr. Received error: ", err)
 			// 	wg.Done()
 			// 	return
 			// }
-			addr, err := net.ResolveTCPAddr("tcp", ":"+port)
-			if err != nil {
-				log.Println("Unable to net.ResolveTCPAddr. Received error: ", err)
-				wg.Done()
-				return
-			}
-			listen2, err := net.ListenTCP("tcp", addr)
-			if err != nil {
-				log.Println("Unable to net.ListenTCP. Received error: ", err)
-				wg.Done()
-				return
-			}
+			// listen2, err := net.ListenTCP("tcp", addr)
+			// if err != nil {
+			// 	log.Println("Unable to net.ListenTCP. Received error: ", err)
+			// 	wg.Done()
+			// 	return
+			// }
 			for {
-				// conn, err := listen.Accept()
-				// if err != nil {
-				// 	log.Fatal(err)
-				// 	// handle error
-				// }
-
-				conn2, err := listen2.AcceptTCP()
+				conn, err := listen.Accept()
 				if err != nil {
 					log.Fatal(err)
 					// handle error
 				}
+
+				// conn2, err := listen2.AcceptTCP()
+				// if err != nil {
+				// 	log.Fatal(err)
+				// 	// handle error
+				// }
 				// Enable Keepalives
-				err = conn2.SetKeepAlive(true)
-				if err != nil {
-					fmt.Printf("Unable to set keepalive - %s", err)
-				}
-				go handleConnection(conn2)
+				// err = conn2.SetKeepAlive(true)
+				// if err != nil {
+				// 	fmt.Printf("Unable to set keepalive - %s", err)
+				// }
+				go handleConnection(conn)
+				// go handleConnection(conn2)
+
 			}
 		}(port, &wg)
 	}
@@ -83,7 +85,7 @@ func handleConnection(conn net.Conn) {
 	str := fmt.Sprintf(`Date: %v, InIp: %v, InPort: %v, DestIP: %v, DestPort: %v`,
 		time.Now().Format("20060102150405"), remHost, remPort, locHost, locPort)
 	fmt.Println(str)
-	data := make([]byte, 4096)
+	data := make([]byte, 50)
 	n, err := conn.Read(data)
 	if err != nil {
 		log.Println(err)
@@ -92,4 +94,5 @@ func handleConnection(conn net.Conn) {
 	}
 	defer conn.Close()
 	fmt.Printf("Received data from %v, of length %v data is %s\n", conn.RemoteAddr(), n, data[:n])
+	conn.Write(data[:n])
 }
